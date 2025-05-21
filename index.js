@@ -11,21 +11,24 @@ const config = {
 const app = express();
 const client = new line.Client(config);
 
-app.post('/webhook', line.middleware(config), (req, res) => {
-    Promise.all(req.body.events.map(handleEvent))
-        .then(result => res.json(result));
-});
-
-function handleEvent(event) {
-    if (event.type !== 'message' || event.message.type !== 'text') {
-        return Promise.resolve(null);
+app.post('/webhook', express.json(), (req, res) => {
+    const log = req.body.log;
+    if (!log) {
+        return res.status(400).send("No log provided.");
     }
 
-    return client.replyMessage(event.replyToken, {
+    // Pushメッセージとして送信（ユーザーIDを固定 or データ内に含めてもOK）
+    const userId = process.env.LINE_USER_ID; // LINEユーザーID
+    client.pushMessage(userId, {
         type: 'text',
-        text: `Bot: ${event.message.text}`
+        text: `nohup.out 更新:\n${log}`
+    })
+    .then(() => res.status(200).send('OK'))
+    .catch(err => {
+        console.error(err);
+        res.status(500).send('Error');
     });
-}
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
